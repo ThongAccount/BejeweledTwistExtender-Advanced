@@ -534,6 +534,8 @@ namespace
                     continue; // don't disturb the piece being twisted
                 if (piece->skin == Sexy::Piece::Skin::UNMATCHABLE)
                     continue; // preserve unmatchable / coal-locked pieces
+                if (sGame.GetSpecial(x, y) != Sexy::Piece::NONE)
+                    continue; // preserve specials (Supernova, Doom, Flame, …)
 
                 if (!isZen[static_cast<int>(piece->skin)])
                 {
