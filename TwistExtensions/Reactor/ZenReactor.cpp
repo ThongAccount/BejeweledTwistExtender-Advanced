@@ -22,6 +22,10 @@ namespace
     void logEvent(const std::string& message);
     void addSupernovaEvent();
 
+    // The game engine allocates exactly 8x8 = 64 pieces.  Accessing
+    // positions beyond 7 in either axis overflows the buffer and crashes.
+    const int MAX_BOARD = 8;
+
     // ------------------------------------------------------------------------
     // Reactor state
     // ------------------------------------------------------------------------
@@ -172,9 +176,6 @@ namespace
     // Consecutive fully-still frames required before the reactor may touch
     // the board. 90 frames = 1.5s at 60 fps. Covers the fall animation after
     // refills AND the deceptive pauses in the middle of chain reactions.
-    // The game engine allocates exactly 8x8 = 64 pieces.  Accessing
-    // positions beyond 7 in either axis overflows the buffer and crashes.
-    const int MAX_BOARD = 8;
     const int SETTLE_FRAMES_REQUIRED = 90;
 
     // Nuke every Flame the moment it appears.  Always on, regardless of
