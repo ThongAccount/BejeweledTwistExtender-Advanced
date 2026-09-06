@@ -62,6 +62,9 @@ namespace
     bool sHaveFrameSlots = false;
 
     bool  sInitialized     = false;
+    bool  sPaletteApplied  = false;  // true once the palette has been enforced
+                                     // for the current settled board; reset on
+                                     // motion so the next fall gets zen skins.
 
     // Whole-board 3-color palette (Zen only).
     std::vector<Sexy::Piece::Skin> sZenColors;
@@ -573,6 +576,7 @@ namespace ZenReactor
         sHaveSnapshot   = false;
         sFreshCells.clear();
         sHaveFrameSlots = false;
+        sPaletteApplied = false;
         sInitialized  = true;
 
         if (sZenColors.empty())
@@ -635,6 +639,7 @@ namespace ZenReactor
         sWasSettled  = false;
         sHaveSnapshot = false; // re-arm the fresh-gem diff on next enable
         sHaveFrameSlots = false;
+        sPaletteApplied = false;
         sFreshCells.clear();
         logEvent(enabled
             ? "[ZEN] Reactor awakened."
@@ -672,6 +677,7 @@ namespace ZenReactor
                 sFreshCells.clear(); // motion started: queued fresh gems are stale
             sWasSettled  = false;
             sQuietFrames = 0;
+            sPaletteApplied = false; // board changed: re-apply palette after settle
             return;
         }
 
@@ -681,6 +687,7 @@ namespace ZenReactor
                 sFreshCells.clear(); // motion started: queued fresh gems are stale
             sWasSettled  = false;
             sQuietFrames = 0;
+            sPaletteApplied = false; // board changed: re-apply palette after settle
             return;
         }
         sWasSettled = true;
@@ -702,7 +709,11 @@ namespace ZenReactor
         // enforce the 3-color palette.
         harvestFreshGems();
         processSeedQueue(false);
-        applyZenBoardPalette();
+        if (!sPaletteApplied)
+        {
+            applyZenBoardPalette();
+            sPaletteApplied = true;
+        }
 
         // The spawn scanner below already avoids the hovered/held gem,
         // so the pulse never has to stall on player input.
@@ -838,6 +849,7 @@ namespace ZenReactor
         sHaveSnapshot   = false;
         sFreshCells.clear();
         sHaveFrameSlots = false;
+        sPaletteApplied = false;
 
         logEvent("[ZEN] Reactor reset. The cycle begins anew.");
     }
