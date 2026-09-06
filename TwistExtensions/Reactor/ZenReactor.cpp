@@ -507,9 +507,18 @@ namespace
         return sGame.GetSpecial(x, y) == special;
     }
 
+    FILE* sLogFile = nullptr;
+
     void logEvent(const std::string& message)
     {
         printf_s("%s\n", message.c_str());
+        if (!sLogFile)
+            sLogFile = fopen("zen_reactor.log", "a");
+        if (sLogFile)
+        {
+            fprintf(sLogFile, "%s\n", message.c_str());
+            fflush(sLogFile);
+        }
     }
 
     void addSupernovaEvent()
@@ -618,6 +627,11 @@ namespace ZenReactor
     void shutdown()
     {
         sInitialized = false;
+        if (sLogFile)
+        {
+            fclose(sLogFile);
+            sLogFile = nullptr;
+        }
     }
 
     // ------------------------------------------------------------------------
