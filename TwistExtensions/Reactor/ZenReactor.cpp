@@ -149,8 +149,8 @@ namespace
             return;
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
 
         for (int x = 0; x < w; ++x)
         {
@@ -172,6 +172,9 @@ namespace
     // Consecutive fully-still frames required before the reactor may touch
     // the board. 90 frames = 1.5s at 60 fps. Covers the fall animation after
     // refills AND the deceptive pauses in the middle of chain reactions.
+    // The game engine allocates exactly 8x8 = 64 pieces.  Accessing
+    // positions beyond 7 in either axis overflows the buffer and crashes.
+    const int MAX_BOARD = 8;
     const int SETTLE_FRAMES_REQUIRED = 90;
 
     // Nuke every Flame the moment it appears.  Always on, regardless of
@@ -185,8 +188,8 @@ namespace
             return;
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
             return;
 
@@ -229,8 +232,8 @@ namespace
         }
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
         {
             sHaveFrameSlots = false;
@@ -273,8 +276,8 @@ namespace
             return false;
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
             return false;
 
@@ -303,8 +306,8 @@ namespace
     void harvestFreshGems()
     {
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
         {
             sHaveSnapshot = false;
@@ -440,8 +443,8 @@ namespace
             return false;
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
             return false;
 
@@ -559,8 +562,8 @@ namespace
             return;
 
         Sexy::GameManager* gm = sGame.getGameManager();
-        const int w = clampi(gm->boardWidth, 0, 64);
-        const int h = clampi(gm->boardHeight, 0, 64);
+        const int w = std::min(clampi(gm->boardWidth, 0, 64), MAX_BOARD);
+        const int h = std::min(clampi(gm->boardHeight, 0, 64), MAX_BOARD);
         if (w <= 0 || h <= 0)
             return;
 
