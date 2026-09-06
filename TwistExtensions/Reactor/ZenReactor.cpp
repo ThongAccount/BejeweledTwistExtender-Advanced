@@ -174,6 +174,27 @@ namespace
     // refills AND the deceptive pauses in the middle of chain reactions.
     const int SETTLE_FRAMES_REQUIRED = 90;
 
+    // Convert Flame gems to Lightning on sight.  The Flame detonation
+    // pipeline fights the reactor's settle gate and orphans pending
+    // explosions (observed stuck Flame bug).  Lightning detonates
+    // instantly on match and avoids the timing conflict entirely.
+    void convertFlameToLightning()
+    {
+        if (!sGame.hasGameManager())
+            return;
+
+        Sexy::GameManager* gm = sGame.getGameManager();
+        const int w = clampi(gm->boardWidth, 0, 64);
+        const int h = clampi(gm->boardHeight, 0, 64);
+        if (w <= 0 || h <= 0)
+            return;
+
+        for (int x = 0; x < w; ++x)
+            for (int y = 0; y < h; ++y)
+                if (sGame.GetSpecial(x, y) == Sexy::Piece::FLAME)
+                    sGame.SetPieceSpecial(x, y, Sexy::Piece::LIGHTNING);
+    }
+
     // True if any slot's piece pointer changed since the previous frame.
     // Falling gems, explosions destroying pieces and refills all recycle
     // slot pointers - this is the most reliable "the board is animating"
@@ -679,6 +700,11 @@ namespace ZenReactor
             // the skin is already correct, so per-frame cost is minimal.
             if (sConfig.enabled)
                 applyZenBoardPalette();
+
+            // --- DURING FALL: Flame → Lightning -------------------------
+            // The Flame detonation pipeline fights the reactor's settle
+            // gate.  Convert on sight so the game never queues a Flame.
+            convertFlameToLightning();
 
             // --- DURING FALL: seeds ride the falling gems ----------------
             // Harvest fresh cells as they arrive and plant queued seeds
