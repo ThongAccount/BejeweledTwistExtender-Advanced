@@ -194,9 +194,17 @@ namespace
         {
             for (int y = 0; y < h; ++y)
             {
+                Sexy::Piece* piece = sGame.GetPiece(x, y);
+                if (piece == nullptr)
+                    continue;
+
                 if (sGame.GetSpecial(x, y) == Sexy::Piece::FLAME)
                 {
-                    sGame.SetPieceSpecial(x, y, Sexy::Piece::NONE);
+                    // Clear BOTH special fields — the game engine tracks
+                    // Flames separately in special2.
+                    piece->special  = Sexy::Piece::NONE;
+                    piece->special2 = Sexy::Piece::NONE;
+                    piece->counter  = 0;
                     logEvent("[ZEN] Flame nuked at " +
                              std::to_string(x) + "," + std::to_string(y));
                 }
