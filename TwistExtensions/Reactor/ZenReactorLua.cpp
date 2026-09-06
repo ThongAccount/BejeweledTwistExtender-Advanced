@@ -51,6 +51,15 @@ namespace
         return 0;
     }
 
+    // skin name lookup (mirrors BejeweledTwist::GetPieceSkinName)
+    static std::string skinName(Sexy::Piece::Skin skin)
+    {
+        const int idx = static_cast<int>(skin);
+        if (idx < 0 || idx > 7)
+            return "Unknown";
+        return ZenReactor::SKIN_NAMES[idx];
+    }
+
     // getReactorStatus() -> table
     int getReactorStatus(lua_State* lua)
     {
@@ -91,6 +100,19 @@ namespace
         lua_pushboolean(lua, s.chaosMode ? 1 : 0);
         lua_setfield(lua, -2, "chaosMode");
 
+        // zenColors -> { "Red", "Blue", "Green" }
+        {
+            const auto& colors = ZenReactor::getZenColors();
+            lua_newtable(lua);
+            int i = 1;
+            for (const auto& c : colors)
+            {
+                lua_pushstring(lua, skinName(c).c_str());
+                lua_rawseti(lua, -2, i++);
+            }
+            lua_setfield(lua, -2, "zenColors");
+        }
+
         return 1;
     }
 
@@ -121,6 +143,19 @@ namespace
 
         lua_pushboolean(lua, c.chaosMode ? 1 : 0);
         lua_setfield(lua, -2, "chaosMode");
+
+        // zenColors -> array of 3 skin names (or "Unmatchable" placeholder would never come back)
+        {
+            const auto& colors = ZenReactor::getZenColors();
+            lua_newtable(lua);
+            int i = 1;
+            for (const auto& col : colors)
+            {
+                lua_pushstring(lua, skinName(col).c_str());
+                lua_rawseti(lua, -2, i++);
+            }
+            lua_setfield(lua, -2, "zenColors");
+        }
 
         return 1;
     }
@@ -166,6 +201,37 @@ namespace
         if (lua_isboolean(lua, -1)) c.chaosMode = lua_toboolean(lua, -1) != 0;
         lua_pop(lua, 1);
 
+        // zenColors : optional array of 3 skin names or integer skin values
+        {
+            lua_getfield(lua, 1, "zenColors");
+            if (lua_istable(lua, -1))
+            {
+                std::vector<int> colors;
+                int i = 1;
+                while (lua_rawgeti(lua, -1, i) != LUA_TNIL)
+                {
+                    int v = 0;
+                    if (lua_isstring(lua, -1))
+                        v = static_cast<int>(BejeweledTwist::GetSkinByName(lua_tostring(lua, -1)));
+                    else if (lua_isinteger(lua, -1))
+                        v = static_cast<int>(lua_tointeger(lua, -1));
+                    else
+                        v = -1;
+                    lua_pop(lua, 1);
+                    if (v >= 0)
+                        colors.push_back(v);
+                    ++i;
+                }
+                lua_pop(lua, 1); // pop the zenColors table
+                if (!colors.empty())
+                    c.zenColors = colors;
+            }
+            else
+            {
+                lua_pop(lua, 1);
+            }
+        }
+
         ZenReactor::applyConfig(c);
         return 0;
     }
@@ -184,5 +250,7 @@ namespace ZenReactorLua
         lua_register(lua, "resetReactor", resetReactor);
         lua_register(lua, "getZenReactorConfig", getZenReactorConfig);
         lua_register(lua, "setZenReactorConfig", setZenReactorConfig);
+        lua_register(lua, "getZenColors", getZenColors);
+        lua_register(lua, "setZenColors", setZenColors);
     }
 }

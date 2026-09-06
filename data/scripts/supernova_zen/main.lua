@@ -32,7 +32,13 @@ setZenReactorConfig({
     spawnDelay    = 120,   -- frames between reactor pulses (level 1)
     doomChance    = 0.01,  -- chance per pulse for the Doom Gem to awaken
     doomCooldown  = 3600,  -- frames before the Doom Gem may be courted again
-    chaosMode     = false  -- maximum chaos mode (see setChaosMode below)
+    chaosMode     = false, -- maximum chaos mode (see setChaosMode below)
+
+    -- Whole-board 3-color mode (Zen only). The entire board -- ordinary gems,
+    -- Supernovas and the Doom Gem -- is restricted to these 3 colors. Change
+    -- the names below to any valid skin: RED, WHITE, GREEN, YELLOW, PURPLE,
+    -- ORANGE, BLUE. They must be 3 distinct colors.
+    zenColors = { "RED", "BLUE", "GREEN" }
 })
 
 print("[ZEN] ...something stirs beneath the board.")
@@ -74,10 +80,12 @@ function onKeyPress(key)
 
     elseif key == KEY_I then
         local s = getReactorStatus()
+        local colors = getZenColors()
         print(string.format(
-            "[ZEN] level %d (%s) | events %d | live supernovas %d | doom %d | pulses %d | next level at %s | chaos %s",
+            "[ZEN] level %d (%s) | events %d | live supernovas %d | doom %d | pulses %d | next level at %s | chaos %s | palette %s/%s/%s",
             s.level, s.levelName, s.supernovaEvents, s.liveSupernovas,
-            s.liveDooms, s.pulses, tostring(s.nextLevelAt), tostring(s.chaosMode)))
+            s.liveDooms, s.pulses, tostring(s.nextLevelAt), tostring(s.chaosMode),
+            tostring(colors[1]), tostring(colors[2]), tostring(colors[3])))
     end
 end
 

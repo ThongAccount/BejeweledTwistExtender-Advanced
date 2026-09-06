@@ -37,7 +37,11 @@ namespace
     int   sDoomTimer       = 0;   // frames since last doom awakening attempt
     int   sPulses          = 0;
     int   sDoomCooldown    = 0;   // frames until doom may be attempted again
+
     bool  sInitialized     = false;
+
+    // Whole-board 3-color palette (Zen only).
+    std::vector<Sexy::Piece::Skin> sZenColors;
 
     BejeweledTwist sGame;         // own instance; the global one stays upstream
 
@@ -232,6 +236,52 @@ namespace
                      std::to_string(sLevel) + ": " + getLevelName(sLevel));
         }
     }
+
+    // ------------------------------------------------------------------------
+    // Whole-board 3-color palette (Zen only)
+    // ------------------------------------------------------------------------
+
+    void applyZenBoardPalette()
+    {
+        if (!sInitialized || !sConfig.enabled || !sGame.hasGameManager())
+            return;
+        if (sZenColors.size() != 3)
+            return;
+
+        Sexy::GameManager* gm = sGame.getGameManager();
+        const int w = clampi(gm->boardWidth, 0, 64);
+        const int h = clampi(gm->boardHeight, 0, 64);
+        if (w <= 0 || h <= 0)
+            return;
+
+        // fast membership test for the 3 zen skins
+        bool isZen[8] = {};
+        for (const auto& s : sZenColors)
+            if (static_cast<int>(s) >= 0 && static_cast<int>(s) <= 7)
+                isZen[static_cast<int>(s)] = true;
+
+        for (int x = 0; x < w; ++x)
+        {
+            for (int y = 0; y < h; ++y)
+            {
+                Sexy::Piece* piece = sGame.GetPiece(x, y);
+                if (piece == nullptr)
+                    continue;
+                if (piece == gm->currentPiece)
+                    continue; // don't disturb the piece being twisted
+                if (piece->skin == Sexy::Piece::Skin::UNMATCHABLE)
+                    continue; // preserve unmatchable / coal-locked pieces
+
+                if (!isZen[static_cast<int>(piece->skin)])
+                {
+                    // reassign to a random zen color.
+                    // Non-flickery: once a piece is set to a zen color it stays
+                    // until a new gem falls in with a non-zen skin.
+                    sGame.SetPieceSkin(x, y, sZenColors[random(0, 2)]);
+                }
+            }
+        }
+    }
 }
 
 namespace ZenReactor
@@ -252,6 +302,14 @@ namespace ZenReactor
         sPulses       = 0;
         sDoomCooldown = 0;
         sInitialized  = true;
+
+        if (sZenColors.empty())
+            randomizeZenColors();
+        else
+            logEvent(std::string("[ZEN] Board palette: ") +
+                     SKIN_NAMES[static_cast<int>(sZenColors[0])] + ", " +
+                     SKIN_NAMES[static_cast<int>(sZenColors[1])] + ", " +
+                     SKIN_NAMES[static_cast<int>(sZenColors[2])] + ".");
 
         logEvent("[ZEN] Cosmic energy detected. The reactor sleeps... for now.");
     }
@@ -304,6 +362,9 @@ namespace ZenReactor
         logEvent(enabled
             ? "[ZEN] Reactor awakened."
             : "[ZEN] Reactor dormant.");
+        // apply the palette immediately (next frame's hook also runs it)
+        if (enabled)
+            applyZenBoardPalette();
     }
 
     bool toggle()
@@ -328,6 +389,11 @@ namespace ZenReactor
         ++sDoomTimer;
         if (sDoomCooldown > 0)
             --sDoomCooldown;
+
+        // Whole-board 3-color enforcement, every frame while Zen is on.
+        // Runs before the pulse so newly-spawned Supernovas/Dooms are already
+        // in the 3-color set the same frame they appear.
+        applyZenBoardPalette();
 
         // The spawn scanner below already avoids the hovered/held gem,
         // so the pulse never has to stall on player input.
@@ -483,5 +549,83 @@ namespace ZenReactor
         if (level < 0 || level > 4)
             return sLevelNames[0];
         return sLevelNames[level];
+    }
+
+    // Zen board palette ---------------------------------------------------------
+    const std::vector<Sexy::Piece::Skin>& getZenColors()
+    {
+        return sZenColors;
+    }
+
+    std::string ZenReactor::getZenColorName(Sexy::Piece::Skin skin)
+    {
+        const int idx = static_cast<int>(skin);
+        if (idx < 0 || idx > 7)
+            return SKIN_NAMES[7];
+        return SKIN_NAMES[idx];
+    }
+
+    bool ZenReactor::isZenColor(Sexy::Piece::Skin skin)
+    {
+        for (const auto& c : sZenColors)
+            if (c == skin)
+                return true;
+        return false;
+    }
+
+    void ZenReactor::setZenColors(const std::vector<int>& colors)
+    {
+        if (colors.size() != 3)
+        {
+            logEvent("[ZEN] setZenColors requires exactly 3 skin values (0..6). Keeping current palette.");
+            return;
+        }
+
+        std::vector<Sexy::Piece::Skin> out;
+        out.reserve(3);
+        for (int v : colors)
+        {
+            if (v < 0 || v > 6)
+            {
+                logEvent(std::string("[ZEN] Invalid Zen color value ") + std::to_string(v) +
+                         "; keeping current palette.");
+                return;
+            }
+            out.push_back(static_cast<Sexy::Piece::Skin>(v));
+        }
+
+        // require distinct colors
+        if (out[0] == out[1] || out[0] == out[2] || out[1] == out[2])
+        {
+            logEvent("[ZEN] Zen colors must be distinct. Keeping current palette.");
+            return;
+        }
+
+        sZenColors = std::move(out);
+        logEvent(std::string("[ZEN] Board palette set to ") +
+                 getZenColorName(sZenColors[0]) + ", " +
+                 getZenColorName(sZenColors[1]) + ", " +
+                 getZenColorName(sZenColors[2]) + ".");
+    }
+
+    void ZenReactor::randomizeZenColors()
+    {
+        sZenColors.clear();
+        std::vector<Sexy::Piece::Skin> pool;
+        for (int i = 0; i < 7; ++i)
+            pool.push_back(static_cast<Sexy::Piece::Skin>(i));
+
+        // pick 3 distinct normal skins
+        for (int i = 0; i < 3; ++i)
+        {
+            const int idx = random(0, static_cast<int>(pool.size()) - 1 - i);
+            sZenColors.push_back(pool[idx]);
+            pool.erase(pool.begin() + idx);
+        }
+
+        logEvent(std::string("[ZEN] Board palette randomized to ") +
+                 getZenColorName(sZenColors[0]) + ", " +
+                 getZenColorName(sZenColors[1]) + ", " +
+                 getZenColorName(sZenColors[2]) + ".");
     }
 }
