@@ -698,10 +698,10 @@ namespace ZenReactor
             return;
 
         // Fully quiet: harvest gems the pipeline just delivered, plant any
-        // queued seeds (fresh gems first, idle fallback for the rest), then
+        // queued seeds on fresh-fallen gems only (spawner behaviour), then
         // enforce the 3-color palette.
         harvestFreshGems();
-        processSeedQueue(true);
+        processSeedQueue(false);
         applyZenBoardPalette();
 
         // The spawn scanner below already avoids the hovered/held gem,
