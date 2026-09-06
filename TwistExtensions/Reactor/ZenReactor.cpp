@@ -37,6 +37,7 @@ namespace
     int   sDoomTimer       = 0;   // frames since last doom awakening attempt
     int   sPulses          = 0;
     int   sDoomCooldown    = 0;   // frames until doom may be attempted again
+    int   sQuietFrames     = 0;   // consecutive frames the board has been settled
 
     bool  sInitialized     = false;
 
@@ -140,6 +141,48 @@ namespace
                     ++dooms;
             }
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // Settle detection
+    // ------------------------------------------------------------------------
+
+    // Consecutive quiet frames required before the reactor may touch the
+    // board. Covers the fall animation that runs AFTER emptied slots have
+    // been refilled (a full board clear refills quickly, then gems fall for
+    // ~0.5s). 45 frames = 0.75s at 60 fps.
+    const int SETTLE_FRAMES_REQUIRED = 45;
+
+    // The reactor only ever acts on a fully settled board: every slot
+    // occupied and no twist in progress. Touching pieces while the game is
+    // clearing, refilling or dropping gems desyncs the game's fall state
+    // machine and can leave gems stuck mid-fall forever (observed after
+    // full board clears). Combined with the quiet-frame debounce above,
+    // this also rides out the post-refill fall animation.
+    bool boardIsSettled()
+    {
+        if (!sGame.hasGameManager())
+            return false;
+
+        Sexy::GameManager* gm = sGame.getGameManager();
+        const int w = clampi(gm->boardWidth, 0, 64);
+        const int h = clampi(gm->boardHeight, 0, 64);
+        if (w <= 0 || h <= 0)
+            return false;
+
+        // A twist in progress means the player is mid-gesture.
+        if (gm->currentPiece != nullptr)
+            return false;
+
+        for (int x = 0; x < w; ++x)
+        {
+            for (int y = 0; y < h; ++y)
+            {
+                if (sGame.GetPiece(x, y) == nullptr)
+                    return false; // clearing / refill in progress
+            }
+        }
+        return true;
     }
 
     // Ask the board: "where can I create chaos without destroying everything?"
@@ -301,6 +344,7 @@ namespace ZenReactor
         sDoomTimer    = 0;
         sPulses       = 0;
         sDoomCooldown = 0;
+        sQuietFrames  = 0;
         sInitialized  = true;
 
         if (sZenColors.empty())
@@ -359,12 +403,11 @@ namespace ZenReactor
     void setEnabled(bool enabled)
     {
         sConfig.enabled = enabled;
+        sQuietFrames = 0; // re-arm the settle gate; the palette is applied
+                          // by the update loop once the board is settled
         logEvent(enabled
             ? "[ZEN] Reactor awakened."
             : "[ZEN] Reactor dormant.");
-        // apply the palette immediately (next frame's hook also runs it)
-        if (enabled)
-            applyZenBoardPalette();
     }
 
     bool toggle()
@@ -390,9 +433,22 @@ namespace ZenReactor
         if (sDoomCooldown > 0)
             --sDoomCooldown;
 
-        // Whole-board 3-color enforcement, every frame while Zen is on.
-        // Runs before the pulse so newly-spawned Supernovas/Dooms are already
-        // in the 3-color set the same frame they appear.
+        // ------------------------------------------------------------------
+        // Settle gate: NEVER touch the board while it is in motion.
+        // ------------------------------------------------------------------
+        // Clearing, refilling and falling gems are the game's state machine;
+        // editing skins or spawning specials mid-flight desyncs it and can
+        // deadlock the board (gems stuck mid-fall after a full clear).
+        if (!boardIsSettled())
+        {
+            sQuietFrames = 0;
+            return;
+        }
+        ++sQuietFrames;
+        if (sQuietFrames < SETTLE_FRAMES_REQUIRED)
+            return;
+
+        // Whole-board 3-color enforcement, settled boards only.
         applyZenBoardPalette();
 
         // The spawn scanner below already avoids the hovered/held gem,
@@ -516,6 +572,7 @@ namespace ZenReactor
         sDoomTimer    = 0;
         sPulses       = 0;
         sDoomCooldown = 0;
+        sQuietFrames  = 0;
 
         logEvent("[ZEN] Reactor reset. The cycle begins anew.");
     }

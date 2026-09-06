@@ -28,6 +28,7 @@ A hidden cosmic gameplay mode. Not a cheat, not a debug tool — the board slowl
 - **The Doom Gem remains legendary** — maximum one Doom Gem, extremely low random chance, a long cooldown between awakening attempts, and a special announcement when it happens.
 - **The board is respected** — the reactor scans the board and only spawns onto plain, ordinary gems. It never overwrites an existing special, never touches the gem under your cursor or inside the twist ring, and skips unmatchable slots.
 - **The game remains playable** — every limit, timer and roll lives in guarded native code. The reactor cannot corrupt the board or crash the update loop.
+- **Settle gate** — the reactor only ever acts on a fully settled board (every slot occupied, no twist in progress, and a short quiet period after). It never touches gems during clears, refills or falls, so cascades and full-board clears resolve normally.
 
 ## Reactor levels
 
