@@ -678,6 +678,17 @@ namespace ZenReactor
             return;
 
         // ------------------------------------------------------------------
+        // Flame → Lightning: runs every frame, both fall and settle.
+        // When the reactor is enabled, every Flame the game engine creates
+        // is instantly replaced with Lightning.  The Flame detonation
+        // pipeline fights the reactor's settle gate and orphans pending
+        // explosions — Lightning detonates on match and avoids it entirely.
+        // Toggled via Z key (same key as the reactor).
+        // ------------------------------------------------------------------
+        if (sConfig.enabled)
+            convertFlameToLightning();
+
+        // ------------------------------------------------------------------
         // Settle tracking: NEVER touch the board while it is in motion.
         // Runs even when the reactor is disabled so manual spawns can use
         // the same gate.
@@ -700,11 +711,6 @@ namespace ZenReactor
             // the skin is already correct, so per-frame cost is minimal.
             if (sConfig.enabled)
                 applyZenBoardPalette();
-
-            // --- DURING FALL: Flame → Lightning -------------------------
-            // The Flame detonation pipeline fights the reactor's settle
-            // gate.  Convert on sight so the game never queues a Flame.
-            convertFlameToLightning();
 
             // --- DURING FALL: seeds ride the falling gems ----------------
             // Harvest fresh cells as they arrive and plant queued seeds
