@@ -13,6 +13,15 @@
 
 namespace
 {
+    // skin name lookup (mirrors BejeweledTwist::GetPieceSkinName)
+    static std::string skinName(Sexy::Piece::Skin skin)
+    {
+        const int idx = static_cast<int>(skin);
+        if (idx < 0 || idx > 7)
+            return "Unknown";
+        return ZenReactor::SKIN_NAMES[idx];
+    }
+
     int enableZenReactor(lua_State* lua)
     {
         ZenReactor::setEnabled(true);
@@ -51,13 +60,54 @@ namespace
         return 0;
     }
 
-    // skin name lookup (mirrors BejeweledTwist::GetPieceSkinName)
-    static std::string skinName(Sexy::Piece::Skin skin)
+    // getZenColors() -> { "Red", "Blue", "Green" }
+    int getZenColors(lua_State* lua)
     {
-        const int idx = static_cast<int>(skin);
-        if (idx < 0 || idx > 7)
-            return "Unknown";
-        return ZenReactor::SKIN_NAMES[idx];
+        const auto& colors = ZenReactor::getZenColors();
+        lua_newtable(lua);
+        int i = 1;
+        for (const auto& c : colors)
+        {
+            lua_pushstring(lua, skinName(c).c_str());
+            lua_rawseti(lua, -2, i++);
+        }
+        return 1;
+    }
+
+    // setZenColors({ "RED", "BLUE", "GREEN" }) - names or integer skin values
+    int setZenColors(lua_State* lua)
+    {
+        if (!lua_istable(lua, 1))
+        {
+            printf_s("setZenColors: expected a table of 3 skin names/values\n");
+            return 0;
+        }
+
+        std::vector<int> colors;
+        int i = 1;
+        while (lua_rawgeti(lua, 1, i) != LUA_TNIL)
+        {
+            int v = 0;
+            if (lua_isstring(lua, -1))
+                v = static_cast<int>(BejeweledTwist::GetSkinByName(lua_tostring(lua, -1)));
+            else if (lua_isinteger(lua, -1))
+                v = static_cast<int>(lua_tointeger(lua, -1));
+            else
+                v = -1;
+            lua_pop(lua, 1);
+            if (v >= 0)
+                colors.push_back(v);
+            ++i;
+        }
+
+        if (colors.empty())
+        {
+            printf_s("setZenColors: table is empty\n");
+            return 0;
+        }
+
+        ZenReactor::setZenColors(colors);
+        return 0;
     }
 
     // getReactorStatus() -> table
