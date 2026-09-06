@@ -177,8 +177,9 @@ namespace
     // Nuke every Flame the moment it appears.  Always on, regardless of
     // reactor enable state.  The Flame detonation pipeline fights the
     // settle gate and orphans pending explosions (stuck Flame bug).
-    // Lightning detonates on match and avoids the conflict entirely.
-    void convertFlameToLightning()
+    // Setting to NONE removes the Flame entirely so the game engine
+    // never queues or processes its detonation.
+    void nukeFlames()
     {
         if (!sGame.hasGameManager())
             return;
@@ -195,7 +196,7 @@ namespace
             {
                 if (sGame.GetSpecial(x, y) == Sexy::Piece::FLAME)
                 {
-                    sGame.SetPieceSpecial(x, y, Sexy::Piece::LIGHTNING);
+                    sGame.SetPieceSpecial(x, y, Sexy::Piece::NONE);
                     logEvent("[ZEN] Flame nuked at " +
                              std::to_string(x) + "," + std::to_string(y));
                 }
@@ -705,7 +706,7 @@ namespace ZenReactor
         // fights the settle gate and orphans pending explosions —
         // Lightning detonates on match and avoids it entirely.
         // ------------------------------------------------------------------
-        convertFlameToLightning();
+        nukeFlames();
 
         // ------------------------------------------------------------------
         // Settle tracking: NEVER touch the board while it is in motion.
