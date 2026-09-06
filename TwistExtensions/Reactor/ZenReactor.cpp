@@ -789,20 +789,15 @@ namespace ZenReactor
         if (liveSupernovas + sSupernovaSeeds < maxSupernovas())
             ++sSupernovaSeeds;
 
-        // Doom awakening: legendary, once per board, heavily chilled.
-        // The roll queues a seed; the cooldown starts when it plants.
+        // Doom awakening: every pulse, like Supernova.  Still capped at
+        // 1 alive (legendary rule).  Cooldown removed — Doom rides every
+        // fall as long as no Doom is already on the board.
         if (sDoomSeeds == 0 &&
             liveDooms < sConfig.maxDoom &&
-            sDoomCooldown <= 0 &&
-            sDoomTimer >= sConfig.doomCooldown)
+            sDoomCooldown <= 0)
         {
-            const float chance = effectiveDoomChance();
-            const float roll = static_cast<float>(random(0, 9999)) / 10000.0f;
-            if (roll < chance)
-            {
-                ++sDoomSeeds;
-                logEvent("[ZEN] The Forbidden Gem stirs, waiting to ride the fall...");
-            }
+            ++sDoomSeeds;
+            logEvent("[ZEN] The Forbidden Gem stirs, waiting to ride the fall...");
         }
     }
 
