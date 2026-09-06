@@ -1,53 +1,56 @@
 #pragma once
 
 #include <string>
-#include <vector>    // ============================================================================
-    // Supernova Zen Reactor
-    //
-    // A hidden cosmic gameplay mode for Bejeweled Twist.
-    //
-    // The reactor is a self-contained core that:
-    //   * pulses on the board update loop (60 fps) and spawns Supernovas slowly
-    //   * treats the Doom Gem as a legendary, once-per-board event
-    //   * understands the board (scans for safe, non-destructive spawn spots)
-    //   * progresses through reactor levels as Supernova events accumulate
-    //   * is fully guarded: limits, cooldowns and validation everywhere
-    //   * can optionally restrict the WHOLE board to 3 colors (Zen only)
-    //
-    // No raw memory games beyond the proven BejeweledTwist accessors already
-    // used by the rest of the extender. The reactor never overwrites a gem.
-    // ============================================================================
+#include <vector>
 
+#include "../BejeweledTwist.h"
+
+// ============================================================================
+// Supernova Zen Reactor
+//
+// A hidden cosmic gameplay mode for Bejeweled Twist.
+//
+// The reactor is a self-contained core that:
+//   * pulses on the board update loop (60 fps) and spawns Supernovas slowly
+//   * treats the Doom Gem as a legendary, once-per-board event
+//   * understands the board (scans for safe, non-destructive spawn spots)
+//   * progresses through reactor levels as Supernova events accumulate
+//   * can restrict the WHOLE board to 3 colors (Zen only)
+//   * is fully guarded: limits, cooldowns and validation everywhere
+//
+// No raw memory games beyond the proven BejeweledTwist accessors already
+// used by the rest of the extender. The reactor never overwrites a gem.
+// ============================================================================
+
+namespace ZenReactor
+{
     // Skin name table, kept in sync with BejeweledTwist::GetPieceSkinName.
-    // This avoids depending on the (never-assigned) global gBejeweledTwist at
-    // init time.
+    // This avoids depending on the (never-assigned) global gBejeweledTwist
+    // at init time.
     constexpr const char* const SKIN_NAMES[8] =
     {
         "Red", "White", "Green", "Yellow",
         "Purple", "Orange", "Blue", "Unmatchable"
     };
 
-    namespace ZenReactor
+    // Reactor configuration. Applied via setReactorConfig / Lua bindings.
+    struct ReactorConfig
     {
-        // Reactor configuration. Applied via setReactorConfig / Lua bindings.
-        struct ReactorConfig
-        {
-            bool  enabled;        // reactor starts pulsing automatically
-            int   maxSupernovas;  // concurrent Supernovas allowed on the board
-            int   maxDoom;        // concurrent Doom Gems allowed (keep at 1)
-            int   spawnDelay;     // frames between reactor pulses at level 1
-            float doomChance;     // chance per pulse for the Doom Gem to awaken
-            int   doomCooldown;   // frames before the Doom Gem may awaken again
-            bool  chaosMode;      // maximum chaos (testing / "maximum chaos" mode)
+        bool  enabled;        // reactor starts pulsing automatically
+        int   maxSupernovas;  // concurrent Supernovas allowed on the board
+        int   maxDoom;        // concurrent Doom Gems allowed (keep at 1)
+        int   spawnDelay;     // frames between reactor pulses at level 1
+        float doomChance;     // chance per pulse for the Doom Gem to awaken
+        int   doomCooldown;   // frames before the Doom Gem may awaken again
+        bool  chaosMode;      // maximum chaos (testing / "maximum chaos" mode)
 
-            // Whole-board 3-color mode (Zen only).
-            // Empty set = auto-pick 3 distinct normal skins at init.
-            // Each entry is a Skin enum value (0..6); values are clamped to valid
-            // normal skins and deduplicated. Specials keep their special type but
-            // their skin is forced into this set, so Supernovas and the Doom Gem
-            // also belong to the 3-color board.
-            std::vector<int> zenColors;
-        };
+        // Whole-board 3-color mode (Zen only).
+        // Empty set = auto-pick 3 distinct normal skins at init.
+        // Each entry is a Skin enum value (0..6). Specials keep their special
+        // type but their skin is forced into this set, so Supernovas and the
+        // Doom Gem also belong to the 3-color board.
+        std::vector<int> zenColors;
+    };
 
     // Snapshot of the reactor state, safe to expose to Lua.
     struct ReactorStatus
@@ -100,9 +103,9 @@
     std::string   getLevelName(int level);
 
     // Zen board palette: whole board, 3 colors, Zen-only.
-    const std::vector<Sexy::Piece::Skin>& getZenColors();             // current 3-color set
-    void setZenColors(const std::vector<int>& colors);               // 3 distinct valid normal skins
-    void randomizeZenColors();                                        // pick 3 distinct normal skins at random
-    std::string getZenColorName(Sexy::Piece::Skin skin);              // for logging / introspection
-    bool isZenColor(Sexy::Piece::Skin skin);                          // membership test
+    const std::vector<Sexy::Piece::Skin>& getZenColors();   // current 3-color set
+    void setZenColors(const std::vector<int>& colors);      // 3 distinct valid normal skins
+    void randomizeZenColors();                              // pick 3 distinct normal skins
+    std::string getZenColorName(Sexy::Piece::Skin skin);    // for logging / introspection
+    bool isZenColor(Sexy::Piece::Skin skin);                // membership test
 }

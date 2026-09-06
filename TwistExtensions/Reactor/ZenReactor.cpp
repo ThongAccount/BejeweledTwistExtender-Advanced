@@ -557,7 +557,7 @@ namespace ZenReactor
         return sZenColors;
     }
 
-    std::string ZenReactor::getZenColorName(Sexy::Piece::Skin skin)
+    std::string getZenColorName(Sexy::Piece::Skin skin)
     {
         const int idx = static_cast<int>(skin);
         if (idx < 0 || idx > 7)
@@ -565,7 +565,7 @@ namespace ZenReactor
         return SKIN_NAMES[idx];
     }
 
-    bool ZenReactor::isZenColor(Sexy::Piece::Skin skin)
+    bool isZenColor(Sexy::Piece::Skin skin)
     {
         for (const auto& c : sZenColors)
             if (c == skin)
@@ -573,7 +573,7 @@ namespace ZenReactor
         return false;
     }
 
-    void ZenReactor::setZenColors(const std::vector<int>& colors)
+    void setZenColors(const std::vector<int>& colors)
     {
         if (colors.size() != 3)
         {
@@ -608,7 +608,7 @@ namespace ZenReactor
                  getZenColorName(sZenColors[2]) + ".");
     }
 
-    void ZenReactor::randomizeZenColors()
+    void randomizeZenColors()
     {
         sZenColors.clear();
         std::vector<Sexy::Piece::Skin> pool;
