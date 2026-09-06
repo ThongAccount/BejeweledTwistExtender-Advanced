@@ -12,6 +12,7 @@
 #include "autosavemod.h"
 #include "aspectratiofix.h"
 #include "multitwist.h"
+#include "../Hooks.h"
 #include "../BejeweledTwist.h"
 #include "../Reactor/ZenReactor.h"
 
