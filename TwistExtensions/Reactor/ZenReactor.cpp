@@ -174,10 +174,10 @@ namespace
     // refills AND the deceptive pauses in the middle of chain reactions.
     const int SETTLE_FRAMES_REQUIRED = 90;
 
-    // Convert Flame gems to Lightning on sight.  The Flame detonation
-    // pipeline fights the reactor's settle gate and orphans pending
-    // explosions (observed stuck Flame bug).  Lightning detonates
-    // instantly on match and avoids the timing conflict entirely.
+    // Nuke every Flame the moment it appears.  Always on, regardless of
+    // reactor enable state.  The Flame detonation pipeline fights the
+    // settle gate and orphans pending explosions (stuck Flame bug).
+    // Lightning detonates on match and avoids the conflict entirely.
     void convertFlameToLightning()
     {
         if (!sGame.hasGameManager())
@@ -190,9 +190,17 @@ namespace
             return;
 
         for (int x = 0; x < w; ++x)
+        {
             for (int y = 0; y < h; ++y)
+            {
                 if (sGame.GetSpecial(x, y) == Sexy::Piece::FLAME)
+                {
                     sGame.SetPieceSpecial(x, y, Sexy::Piece::LIGHTNING);
+                    logEvent("[ZEN] Flame nuked at " +
+                             std::to_string(x) + "," + std::to_string(y));
+                }
+            }
+        }
     }
 
     // True if any slot's piece pointer changed since the previous frame.
@@ -678,15 +686,12 @@ namespace ZenReactor
             return;
 
         // ------------------------------------------------------------------
-        // Flame → Lightning: runs every frame, both fall and settle.
-        // When the reactor is enabled, every Flame the game engine creates
-        // is instantly replaced with Lightning.  The Flame detonation
-        // pipeline fights the reactor's settle gate and orphans pending
-        // explosions — Lightning detonates on match and avoids it entirely.
-        // Toggled via Z key (same key as the reactor).
+        // Flame → Lightning: ALWAYS on.  Every Flame the game engine
+        // creates is instantly nuked.  The Flame detonation pipeline
+        // fights the settle gate and orphans pending explosions —
+        // Lightning detonates on match and avoids it entirely.
         // ------------------------------------------------------------------
-        if (sConfig.enabled)
-            convertFlameToLightning();
+        convertFlameToLightning();
 
         // ------------------------------------------------------------------
         // Settle tracking: NEVER touch the board while it is in motion.
