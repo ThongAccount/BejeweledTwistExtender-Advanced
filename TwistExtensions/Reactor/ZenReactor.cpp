@@ -513,7 +513,7 @@ namespace
     {
         printf_s("%s\n", message.c_str());
         if (!sLogFile)
-            sLogFile = fopen("zen_reactor.log", "a");
+            fopen_s(&sLogFile, "zen_reactor.log", "a");
         if (sLogFile)
         {
             fprintf(sLogFile, "%s\n", message.c_str());
