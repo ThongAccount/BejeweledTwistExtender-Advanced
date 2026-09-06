@@ -1,0 +1,67 @@
+name: Build TwistExtensions
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (Release x86)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution (Release x86)
+        shell: cmd
+        run: msbuild BejeweledTwistExtender.sln /p:Configuration=Release /p:Platform=x86 /m /nologo /v:m
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $out = "artifacts/BejeweledTwistExtender-build"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+          $candidates = @(
+            "Game/TwistExtensions.dll",
+            "Game/TwistExtensions.pdb"
+          )
+
+          foreach ($c in $candidates) {
+            if (Test-Path $c) {
+              Copy-Item $c -Destination $out -Force
+              Write-Host "Collected $c"
+            }
+          }
+
+          # Ship the Lua scripts alongside the DLL so the build is runnable
+          # as soon as it is dropped into a game install.
+          if (Test-Path "data/scripts") {
+            Copy-Item data/scripts -Destination "$out/data/scripts" -Recurse -Force
+            Write-Host "Collected data/scripts"
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BejeweledTwistExtender-build
+          path: artifacts/BejeweledTwistExtender-build/**
+          if-no-files-found: error
+
+      - name: Job summary
+        if: success()
+        shell: pwsh
+        run: |
+          Add-Content $env:GITHUB_STEP_SUMMARY @"
+          ## Build succeeded
+          - Configuration: Release x86
+          - Output: ``TwistExtensions.dll`` (+ PDB)
+          - Artifact: ``BejeweledTwistExtender-build`` (DLL, PDB, Lua scripts)
+          "@

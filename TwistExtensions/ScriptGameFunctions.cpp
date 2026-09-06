@@ -1,5 +1,6 @@
 #include "ScriptGameFunctions.h"
 #include "BejeweledTwist.h"
+#include "Reactor/ZenReactorLua.h"
 
 namespace ScriptGameFunctions
 {
@@ -683,6 +684,9 @@ namespace ScriptGameFunctions
         /*lua_register(lua, "isMultiTwistEnabled", IsMultiTwistEnabled);*/
         /*lua_register(lua, "isInGame", IsInGame);*/
         /*lua_register(lua, "isCCWEnabled", IsCCWEnabled);*/
+
+        // Supernova Zen Reactor API (safe, guarded bindings)
+        ZenReactorLua::registerFunctions(lua);
     }
 
     

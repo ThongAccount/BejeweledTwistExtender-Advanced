@@ -12,6 +12,8 @@
 #include "autosavemod.h"
 #include "aspectratiofix.h"
 #include "multitwist.h"
+#include "../BejeweledTwist.h"
+#include "../Reactor/ZenReactor.h"
 
 //default values if no config file
 bool isMultiTwistEnabled = 0;
@@ -89,6 +91,14 @@ bool initMods(CodeInjection::FuncInterceptor* hook)
     initAutosaveMod(hook);
     initAspectRatioFix(hook);
     initMultiTwistMod(hook);
+
+    // Supernova Zen Reactor: init state and pulse on every board update.
+    // The board update hook runs 60 times per second while in game.
+    ZenReactor::init();
+    gHooks.registerUpdateBoardHook([](BejeweledTwist* /*game*/)
+    {
+        ZenReactor::update();
+    });
 
     return true;
 }

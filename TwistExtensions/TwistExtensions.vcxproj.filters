@@ -31,6 +31,12 @@
     <Filter Include="Source Files\lua">
       <UniqueIdentifier>{e64ffa34-abcf-4037-9a65-e7a5e6ab1a41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Reactor">
+      <UniqueIdentifier>{7a1c2f0e-3b4d-4e5f-9a6b-1c2d3e4f5a6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Reactor">
+      <UniqueIdentifier>{8b2d3f1a-4c5e-4f60-8a7b-2d3e4f5a6b7c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -204,6 +210,12 @@
     <ClCompile Include="mods\multitwist.cpp">
       <Filter>Source Files\mods</Filter>
     </ClCompile>
+    <ClCompile Include="Reactor\ZenReactor.cpp">
+      <Filter>Source Files\Reactor</Filter>
+    </ClCompile>
+    <ClCompile Include="Reactor\ZenReactorLua.cpp">
+      <Filter>Source Files\Reactor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\Engine.h">
@@ -364,6 +376,12 @@
     </ClInclude>
     <ClInclude Include="mods\multitwist.h">
       <Filter>Header Files\mods</Filter>
+    </ClInclude>
+    <ClInclude Include="Reactor\ZenReactor.h">
+      <Filter>Header Files\Reactor</Filter>
+    </ClInclude>
+    <ClInclude Include="Reactor\ZenReactorLua.h">
+      <Filter>Header Files\Reactor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

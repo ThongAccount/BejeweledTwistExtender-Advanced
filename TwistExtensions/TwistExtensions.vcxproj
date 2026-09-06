@@ -145,6 +145,8 @@
     <ClCompile Include="ScriptGameFunctions.cpp" />
     <ClCompile Include="Script.cpp" />
     <ClCompile Include="ScriptManager.cpp" />
+    <ClCompile Include="Reactor\ZenReactor.cpp" />
+    <ClCompile Include="Reactor\ZenReactorLua.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\Addresses.h" />
@@ -200,6 +202,8 @@
     <ClInclude Include="ScriptGameFunctions.h" />
     <ClInclude Include="Script.h" />
     <ClInclude Include="ScriptManager.h" />
+    <ClInclude Include="Reactor\ZenReactor.h" />
+    <ClInclude Include="Reactor\ZenReactorLua.h" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="extender\LDE64-masm.asm" />
