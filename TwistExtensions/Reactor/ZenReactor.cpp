@@ -62,9 +62,6 @@ namespace
     bool sHaveFrameSlots = false;
 
     bool  sInitialized     = false;
-    bool  sPaletteApplied  = false;  // true once the palette has been enforced
-                                     // for the current settled board; reset on
-                                     // motion so the next fall gets zen skins.
 
     // Whole-board 3-color palette (Zen only).
     std::vector<Sexy::Piece::Skin> sZenColors;
@@ -576,7 +573,6 @@ namespace ZenReactor
         sHaveSnapshot   = false;
         sFreshCells.clear();
         sHaveFrameSlots = false;
-        sPaletteApplied = false;
         sInitialized  = true;
 
         if (sZenColors.empty())
@@ -639,7 +635,6 @@ namespace ZenReactor
         sWasSettled  = false;
         sHaveSnapshot = false; // re-arm the fresh-gem diff on next enable
         sHaveFrameSlots = false;
-        sPaletteApplied = false;
         sFreshCells.clear();
         logEvent(enabled
             ? "[ZEN] Reactor awakened."
@@ -677,7 +672,21 @@ namespace ZenReactor
                 sFreshCells.clear(); // motion started: queued fresh gems are stale
             sWasSettled  = false;
             sQuietFrames = 0;
-            sPaletteApplied = false; // board changed: re-apply palette after settle
+
+            // --- DURING FALL: enforce 3-color palette immediately --------
+            // Gems get zen skins the instant they appear, not after a
+            // visible flash of random colors.  SetPieceSkin is a no-op if
+            // the skin is already correct, so per-frame cost is minimal.
+            if (sConfig.enabled)
+                applyZenBoardPalette();
+
+            // --- DURING FALL: seeds ride the falling gems ----------------
+            // Harvest fresh cells as they arrive and plant queued seeds
+            // on them right away, so Supernova/Doom appear mid-fall like
+            // the game's native skull/bomb spawners.
+            harvestFreshGems();
+            processSeedQueue(false);
+
             return;
         }
 
@@ -687,7 +696,6 @@ namespace ZenReactor
                 sFreshCells.clear(); // motion started: queued fresh gems are stale
             sWasSettled  = false;
             sQuietFrames = 0;
-            sPaletteApplied = false; // board changed: re-apply palette after settle
             return;
         }
         sWasSettled = true;
@@ -704,16 +712,10 @@ namespace ZenReactor
         if (sQuietFrames < SETTLE_FRAMES_REQUIRED)
             return;
 
-        // Fully quiet: harvest gems the pipeline just delivered, plant any
-        // queued seeds on fresh-fallen gems only (spawner behaviour), then
-        // enforce the 3-color palette.
-        harvestFreshGems();
-        processSeedQueue(false);
-        if (!sPaletteApplied)
-        {
-            applyZenBoardPalette();
-            sPaletteApplied = true;
-        }
+        // ------------------------------------------------------------------
+        // Fully quiet: fire the reactor pulse to queue seeds for the NEXT
+        // fall.  Palette and harvesting are already done during the fall.
+        // ------------------------------------------------------------------
 
         // The spawn scanner below already avoids the hovered/held gem,
         // so the pulse never has to stall on player input.
@@ -849,7 +851,6 @@ namespace ZenReactor
         sHaveSnapshot   = false;
         sFreshCells.clear();
         sHaveFrameSlots = false;
-        sPaletteApplied = false;
 
         logEvent("[ZEN] Reactor reset. The cycle begins anew.");
     }
