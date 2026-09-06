@@ -65,12 +65,12 @@ function onKeyPress(key)
 
     elseif key == KEY_S then
         if not spawnSupernova() then
-            print("[ZEN] The stars refuse. (limit reached, board full, or not in game)")
+            print("[ZEN] The stars refuse. (limit reached, or not in game)")
         end
 
     elseif key == KEY_D then
         if not spawnDoom() then
-            print("[ZEN] The Forbidden Gem slumbers on. (already present, cooling down, or not in game)")
+            print("[ZEN] The Forbidden Gem slumbers on. (already present or cooling down)")
         end
 
     elseif key == KEY_R then
@@ -82,9 +82,9 @@ function onKeyPress(key)
         local s = getReactorStatus()
         local colors = getZenColors()
         print(string.format(
-            "[ZEN] level %d (%s) | events %d | live supernovas %d | doom %d | pulses %d | next level at %s | chaos %s | palette %s/%s/%s",
-            s.level, s.levelName, s.supernovaEvents, s.liveSupernovas,
-            s.liveDooms, s.pulses, tostring(s.nextLevelAt), tostring(s.chaosMode),
+            "[ZEN] level %d (%s) | events %d | supernovas %d live + %d riding | doom %d live + %d riding | pulses %d | chaos %s | palette %s/%s/%s",
+            s.level, s.levelName, s.supernovaEvents, s.liveSupernovas, s.pendingSupernovas,
+            s.liveDooms, s.pendingDooms, s.pulses, tostring(s.chaosMode),
             tostring(colors[1]), tostring(colors[2]), tostring(colors[3])))
     end
 end

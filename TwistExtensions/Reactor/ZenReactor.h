@@ -11,7 +11,9 @@
 // A hidden cosmic gameplay mode for Bejeweled Twist.
 //
 // The reactor is a self-contained core that:
-//   * pulses on the board update loop (60 fps) and spawns Supernovas slowly
+//   * pulses on the board update loop (60 fps) and seeds Supernovas slowly
+//   * seeds ride the game's own gem-fall pipeline: specials only ever land
+//     on gems the game itself just delivered, never on settled ones
 //   * treats the Doom Gem as a legendary, once-per-board event
 //   * understands the board (scans for safe, non-destructive spawn spots)
 //   * progresses through reactor levels as Supernova events accumulate
@@ -60,6 +62,8 @@ namespace ZenReactor
         int   supernovaEvents;  // total Supernovas ever created (drives levels)
         int   liveSupernovas;   // currently on the board
         int   liveDooms;        // currently on the board
+        int   pendingSupernovas; // seeds waiting to ride the next gem fall
+        int   pendingDooms;      // seeds waiting to ride the next gem fall
         int   pulses;           // reactor pulses since reset
         int   spawnDelay;       // effective frames between pulses
         float doomChance;       // effective doom chance per pulse

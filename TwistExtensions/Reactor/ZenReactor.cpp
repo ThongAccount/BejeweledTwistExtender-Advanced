@@ -16,6 +16,12 @@ namespace
 {
     using namespace ZenReactor;
 
+    // Forward declarations: the seed queue (defined below, next to the
+    // settle detector) plants via helpers that appear later in this file.
+    bool spawnAt(int x, int y, Sexy::Piece::SpecialType special);
+    void logEvent(const std::string& message);
+    void addSupernovaEvent();
+
     // ------------------------------------------------------------------------
     // Reactor state
     // ------------------------------------------------------------------------
@@ -38,6 +44,18 @@ namespace
     int   sPulses          = 0;
     int   sDoomCooldown    = 0;   // frames until doom may be attempted again
     int   sQuietFrames     = 0;   // consecutive frames the board has been settled
+
+    // Spawner state: seeds wait for gems that arrive via the game's own
+    // fall pipeline, then ride them (like the game's native skull/bomb
+    // spawners). The reactor never converts long-settled gems on a timer.
+    int   sSupernovaSeeds  = 0;   // supernova seeds waiting for a fresh gem
+    int   sDoomSeeds       = 0;   // doom seeds waiting for a fresh gem
+    bool  sWasSettled      = false;
+    bool  sHaveSnapshot    = false;
+
+    struct FreshCell { int x; int y; };
+    std::vector<FreshCell> sFreshCells;               // gems that just arrived
+    std::vector<const Sexy::Piece*> sSlotSnapshot;    // piece pointer per slot
 
     bool  sInitialized     = false;
 
@@ -185,6 +203,103 @@ namespace
         return true;
     }
 
+    // A fresh gem is a slot whose piece pointer changed since the board was
+    // last quiet - i.e. a gem the game itself just delivered through its
+    // fall pipeline. Seeding only these gems means specials genuinely ride
+    // the falling gems instead of overwriting settled ones.
+    // The fresh list is REPLACED on every harvest: cells from an older fall
+    // expire, so queued seeds can only ever land on the most recent delivery.
+    void harvestFreshGems()
+    {
+        Sexy::GameManager* gm = sGame.getGameManager();
+        const int w = clampi(gm->boardWidth, 0, 64);
+        const int h = clampi(gm->boardHeight, 0, 64);
+        if (w <= 0 || h <= 0)
+        {
+            sHaveSnapshot = false;
+            sFreshCells.clear();
+            return;
+        }
+
+        std::vector<const Sexy::Piece*> current(static_cast<size_t>(w * h), nullptr);
+        for (int x = 0; x < w; ++x)
+            for (int y = 0; y < h; ++y)
+                current[static_cast<size_t>(x + y * w)] = sGame.GetPiece(x, y);
+
+        std::vector<FreshCell> fresh;
+        if (sHaveSnapshot && static_cast<int>(sSlotSnapshot.size()) == w * h)
+        {
+            for (int x = 0; x < w && static_cast<int>(fresh.size()) < 64; ++x)
+            {
+                for (int y = 0; y < h && static_cast<int>(fresh.size()) < 64; ++y)
+                {
+                    const size_t idx = static_cast<size_t>(x + y * w);
+                    const Sexy::Piece* now = current[idx];
+                    if (now == nullptr || now == sSlotSnapshot[idx])
+                        continue;
+                    fresh.push_back({x, y});
+                }
+            }
+        }
+
+        sFreshCells   = std::move(fresh);
+        sSlotSnapshot = std::move(current);
+        sHaveSnapshot = true;
+    }
+
+    bool isSeedable(int x, int y, int hoverX, int hoverY)
+    {
+        if (x == hoverX && y == hoverY)
+            return false;
+
+        Sexy::Piece* piece = sGame.GetPiece(x, y);
+        if (piece == nullptr)
+            return false;
+        if (sGame.GetSpecial(x, y) != Sexy::Piece::NONE)
+            return false;
+        if (piece->skin == Sexy::Piece::Skin::UNMATCHABLE)
+            return false;
+        return true;
+    }
+
+    // Plant queued seeds onto fresh gems. Doom has priority (it is the
+    // rarer event). Cells are consumed whether they seed or not: once a
+    // gem has been considered it is no longer "fresh".
+    void processSeedQueue()
+    {
+        if (sFreshCells.empty() || (sSupernovaSeeds == 0 && sDoomSeeds == 0))
+            return;
+
+        int hoverX = -1, hoverY = -1;
+        sGame.GetHoverPos(hoverX, hoverY);
+
+        while (!sFreshCells.empty() && (sSupernovaSeeds > 0 || sDoomSeeds > 0))
+        {
+            const int x = sFreshCells.front().x;
+            const int y = sFreshCells.front().y;
+            sFreshCells.erase(sFreshCells.begin());
+
+            if (!isSeedable(x, y, hoverX, hoverY))
+                continue;
+
+            if (sDoomSeeds > 0 && spawnAt(x, y, Sexy::Piece::DOOM))
+            {
+                --sDoomSeeds;
+                sDoomCooldown = sConfig.doomCooldown;
+                sDoomTimer = 0;
+                logEvent("[ZEN] THE FORBIDDEN DOOM GEM ARRIVES at " +
+                         std::to_string(x) + "," + std::to_string(y));
+            }
+            else if (sSupernovaSeeds > 0 && spawnAt(x, y, Sexy::Piece::SUPERNOVA))
+            {
+                --sSupernovaSeeds;
+                addSupernovaEvent();
+                logEvent("[ZEN] A Supernova rides the fall at " +
+                         std::to_string(x) + "," + std::to_string(y));
+            }
+        }
+    }
+
     // Ask the board: "where can I create chaos without destroying everything?"
     // A position is safe when the gem exists, is a plain gem (no special,
     // not unmatchable/coal-like), is not directly under the player's cursor
@@ -245,6 +360,11 @@ namespace
         return true;
     }
 
+    // The Doom Gem counts down on matchless moves and detonates at zero -
+    // no second chance. Every doom the reactor spawns gets two moves to be
+    // matched before it blows.
+    const int DOOM_START_COUNTER = 2;
+
     bool spawnAt(int x, int y, Sexy::Piece::SpecialType special)
     {
         // Re-validate right before the write; the board may have shifted
@@ -255,6 +375,14 @@ namespace
             return false;
 
         sGame.SetPieceSpecial(x, y, special);
+
+        // Doom arrives live: counter 2, ticking down on matchless moves.
+        if (special == Sexy::Piece::DOOM &&
+            sGame.GetSpecial(x, y) == Sexy::Piece::DOOM)
+        {
+            sGame.SetCounter(x, y, DOOM_START_COUNTER);
+        }
+
         return sGame.GetSpecial(x, y) == special;
     }
 
@@ -345,6 +473,11 @@ namespace ZenReactor
         sPulses       = 0;
         sDoomCooldown = 0;
         sQuietFrames  = 0;
+        sSupernovaSeeds = 0;
+        sDoomSeeds      = 0;
+        sWasSettled     = false;
+        sHaveSnapshot   = false;
+        sFreshCells.clear();
         sInitialized  = true;
 
         if (sZenColors.empty())
@@ -403,8 +536,10 @@ namespace ZenReactor
     void setEnabled(bool enabled)
     {
         sConfig.enabled = enabled;
-        sQuietFrames = 0; // re-arm the settle gate; the palette is applied
-                          // by the update loop once the board is settled
+        sQuietFrames = 0;
+        sWasSettled  = false;
+        sHaveSnapshot = false; // re-arm the fresh-gem diff on next enable
+        sFreshCells.clear();
         logEvent(enabled
             ? "[ZEN] Reactor awakened."
             : "[ZEN] Reactor dormant.");
@@ -422,33 +557,43 @@ namespace ZenReactor
 
     void update()
     {
-        if (!sInitialized || !sConfig.enabled)
+        if (!sInitialized || !sGame.hasGameManager())
             return;
-
-        if (!sGame.hasGameManager())
-            return;
-
-        ++sTimer;
-        ++sDoomTimer;
-        if (sDoomCooldown > 0)
-            --sDoomCooldown;
 
         // ------------------------------------------------------------------
-        // Settle gate: NEVER touch the board while it is in motion.
+        // Settle tracking: NEVER touch the board while it is in motion.
+        // Runs even when the reactor is disabled so manual spawns can use
+        // the same gate.
         // ------------------------------------------------------------------
         // Clearing, refilling and falling gems are the game's state machine;
         // editing skins or spawning specials mid-flight desyncs it and can
         // deadlock the board (gems stuck mid-fall after a full clear).
         if (!boardIsSettled())
         {
+            if (sWasSettled)
+                sFreshCells.clear(); // motion started: queued fresh gems are stale
+            sWasSettled  = false;
             sQuietFrames = 0;
             return;
         }
+        sWasSettled = true;
         ++sQuietFrames;
+
+        if (!sConfig.enabled)
+            return; // asleep: keep the gate armed, touch nothing
+
+        ++sTimer;
+        ++sDoomTimer;
+        if (sDoomCooldown > 0)
+            --sDoomCooldown;
+
         if (sQuietFrames < SETTLE_FRAMES_REQUIRED)
             return;
 
-        // Whole-board 3-color enforcement, settled boards only.
+        // Fully quiet: harvest gems the pipeline just delivered, plant any
+        // queued seeds onto them, then enforce the 3-color palette.
+        harvestFreshGems();
+        processSeedQueue();
         applyZenBoardPalette();
 
         // The spawn scanner below already avoids the hovered/held gem,
@@ -458,7 +603,7 @@ namespace ZenReactor
             return;
 
         // ------------------------------------------------------------------
-        // Reactor pulse
+        // Reactor pulse: queue seeds; they ride the next gem fall.
         // ------------------------------------------------------------------
         sTimer = 0;
         ++sPulses;
@@ -467,20 +612,14 @@ namespace ZenReactor
         int liveDooms = 0;
         recountBoard(liveSupernovas, liveDooms);
 
-        // Supernova generation: one per pulse, only below the cap.
-        if (liveSupernovas < maxSupernovas())
-        {
-            int x = -1, y = -1;
-            if (findSafeSpawnPosition(x, y) && spawnAt(x, y, Sexy::Piece::SUPERNOVA))
-            {
-                addSupernovaEvent();
-                logEvent("[ZEN] Supernova created at " +
-                         std::to_string(x) + "," + std::to_string(y));
-            }
-        }
+        // Supernova seeds: only below the cap (live + queued).
+        if (liveSupernovas + sSupernovaSeeds < maxSupernovas())
+            ++sSupernovaSeeds;
 
         // Doom awakening: legendary, once per board, heavily chilled.
-        if (liveDooms < sConfig.maxDoom &&
+        // The roll queues a seed; the cooldown starts when it plants.
+        if (sDoomSeeds == 0 &&
+            liveDooms < sConfig.maxDoom &&
             sDoomCooldown <= 0 &&
             sDoomTimer >= sConfig.doomCooldown)
         {
@@ -488,15 +627,8 @@ namespace ZenReactor
             const float roll = static_cast<float>(random(0, 9999)) / 10000.0f;
             if (roll < chance)
             {
-                int x = -1, y = -1;
-                if (findSafeSpawnPosition(x, y) && spawnAt(x, y, Sexy::Piece::DOOM))
-                {
-                    logEvent("[ZEN] THE FORBIDDEN DOOM GEM AWAKENS at " +
-                             std::to_string(x) + "," + std::to_string(y));
-                }
-                // Whether it spawned or not, do not hammer the dice.
-                sDoomCooldown = sConfig.doomCooldown;
-                sDoomTimer = 0;
+                ++sDoomSeeds;
+                logEvent("[ZEN] The Forbidden Gem stirs, waiting to ride the fall...");
             }
         }
     }
@@ -513,21 +645,29 @@ namespace ZenReactor
         int liveSupernovas = 0, liveDooms = 0;
         recountBoard(liveSupernovas, liveDooms);
 
-        if (liveSupernovas >= maxSupernovas())
+        if (liveSupernovas + sSupernovaSeeds >= maxSupernovas())
         {
             logEvent("[ZEN] The board cannot hold another supernova.");
             return false;
         }
 
-        int x = -1, y = -1;
-        if (!findSafeSpawnPosition(x, y))
-            return false;
+        // Settled board: plant immediately for instant feedback.
+        if (sQuietFrames >= SETTLE_FRAMES_REQUIRED)
+        {
+            int x = -1, y = -1;
+            if (!findSafeSpawnPosition(x, y))
+                return false;
+            if (!spawnAt(x, y, Sexy::Piece::SUPERNOVA))
+                return false;
 
-        if (!spawnAt(x, y, Sexy::Piece::SUPERNOVA))
-            return false;
+            addSupernovaEvent();
+            logEvent("[ZEN] Supernova created at " + std::to_string(x) + "," + std::to_string(y));
+            return true;
+        }
 
-        addSupernovaEvent();
-        logEvent("[ZEN] Supernova created at " + std::to_string(x) + "," + std::to_string(y));
+        // Board in motion: queue the seed; it rides the next fall.
+        ++sSupernovaSeeds;
+        logEvent("[ZEN] A supernova seed joins the fall...");
         return true;
     }
 
@@ -539,24 +679,32 @@ namespace ZenReactor
         int liveSupernovas = 0, liveDooms = 0;
         recountBoard(liveSupernovas, liveDooms);
 
-        if (liveDooms >= sConfig.maxDoom || sDoomCooldown > 0)
+        if (liveDooms + sDoomSeeds >= sConfig.maxDoom || sDoomCooldown > 0)
         {
             logEvent("[ZEN] The Forbidden Gem refuses to awaken again so soon.");
             return false;
         }
 
-        int x = -1, y = -1;
-        if (!findSafeSpawnPosition(x, y))
-            return false;
+        // Settled board: plant immediately for instant feedback.
+        if (sQuietFrames >= SETTLE_FRAMES_REQUIRED)
+        {
+            int x = -1, y = -1;
+            if (!findSafeSpawnPosition(x, y))
+                return false;
+            if (!spawnAt(x, y, Sexy::Piece::DOOM))
+                return false;
 
-        if (!spawnAt(x, y, Sexy::Piece::DOOM))
-            return false;
+            logEvent("[ZEN] THE FORBIDDEN DOOM GEM AWAKENS at " +
+                     std::to_string(x) + "," + std::to_string(y));
 
-        logEvent("[ZEN] THE FORBIDDEN DOOM GEM AWAKENS at " +
-                 std::to_string(x) + "," + std::to_string(y));
+            sDoomCooldown = sConfig.doomCooldown;
+            sDoomTimer = 0;
+            return true;
+        }
 
-        sDoomCooldown = sConfig.doomCooldown;
-        sDoomTimer = 0;
+        // Board in motion: queue the seed; it rides the next fall.
+        ++sDoomSeeds;
+        logEvent("[ZEN] The Forbidden Gem will ride the next fall...");
         return true;
     }
 
@@ -573,6 +721,11 @@ namespace ZenReactor
         sPulses       = 0;
         sDoomCooldown = 0;
         sQuietFrames  = 0;
+        sSupernovaSeeds = 0;
+        sDoomSeeds      = 0;
+        sWasSettled     = false;
+        sHaveSnapshot   = false;
+        sFreshCells.clear();
 
         logEvent("[ZEN] Reactor reset. The cycle begins anew.");
     }
@@ -597,6 +750,8 @@ namespace ZenReactor
         recountBoard(liveSupernovas, liveDooms);
         status.liveSupernovas = liveSupernovas;
         status.liveDooms      = liveDooms;
+        status.pendingSupernovas = sSupernovaSeeds;
+        status.pendingDooms      = sDoomSeeds;
 
         return status;
     }
