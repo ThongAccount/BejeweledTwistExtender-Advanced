@@ -315,6 +315,9 @@ namespace
         return true;
     }
 
+    // Forward declaration (used by processSeedQueue's idle-fallback path).
+    bool findSafeSpawnPosition(int& outX, int& outY);
+
     // Plant queued seeds. Doom has priority (it is the rarer event).
     // Fresh gems (delivered by the last fall) are seeded first so specials
     // ride the fall; with allowAnyCell, remaining seeds plant on any safe
